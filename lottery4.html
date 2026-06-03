@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>小修の誕生日一番くじ獎卡紀錄</title>
+  <style>
+    body { font-family: "Noto Sans TC", sans-serif; text-align: center; }
+    .login, .main { margin: 20px auto; width: 90%; max-width: 400px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    input { margin: 5px; padding: 8px; width: 90%; }
+    button { padding: 8px 15px; margin-top: 10px; }
+    .item { margin: 10px 0; }
+    .grandPrize { margin-top: 20px; font-size: 20px; font-weight: bold; color: green; }
+    .colorBox { margin-top: 20px; }
+    .colorTable { margin-top: 15px; text-align: left; font-size: 14px; }
+    .warning { color: red; font-weight: bold; margin-top: 15px; }
+  </style>
+</head>
+<body>
+  <div class="login" id="loginBox">
+    <h2>登入</h2>
+    <input type="text" id="username" placeholder="帳號(出生西元年)"><br>
+    <input type="password" id="password" placeholder="密碼(生日日期四碼)"><br>
+    <button onclick="login()">登入</button>
+    <div id="loginMsg"></div>
+    <div id="storageWarning" class="warning"></div>
+  </div>
+
+  <div class="main" id="mainBox" style="display:none;">
+    <h2>小修の誕生日一番くじ獎卡紀錄</h2>
+    <div id="items"></div>
+    <div class="grandPrize" id="grandPrize"></div>
+    <div class="colorBox">
+      <h3>更改背景顏色</h3>
+      <button onclick="changeColor('linear-gradient(to right, #f5f5f5, #cce7ff)')">灰白→淡藍</button>
+      <button onclick="changeColor('linear-gradient(to right, #d4f5d4, #ffe0f0)')">淡綠→淡粉</button>
+      <button onclick="changeColor('linear-gradient(to right, #fffacd, #cce7ff)')">淡黃→淡藍</button>
+      <br><br>
+      <h4>自訂漸層顏色</h4>
+      <input type="text" id="color1" placeholder="第一個顏色 (如 #ff0000)">
+      <input type="text" id="color2" placeholder="第二個顏色 (如 #0000ff)">
+      <button onclick="customGradient()">套用自訂漸層</button>
+      <div class="colorTable">
+        <strong>常用顏色代碼：</strong><br>
+        🔴 紅色：#ff0000<br>
+        🟠 橙色：#ffa500<br>
+        🟡 黃色：#ffff00<br>
+        🟢 綠色：#008000<br>
+        🔵 藍色：#0000ff<br>
+        🟣 紫色：#800080<br>
+        ⚫ 黑色：#000000<br>
+        ⚪ 白色：#ffffff<br>
+        🌸 粉紅：#ffc0cb<br>
+        🌊 淡藍：#87cefa
+      </div>
+    </div>
+    <button onclick="clearRecords()">清空獎項紀錄</button>
+    <button onclick="logout()">登出</button>
+    <button onclick="clearAll()">清除所有資料</button>
+  </div>
+
+  <script>
+    const account = { user: "2007", pass: "0704" };
+    const prizeNames = ["A","B","C","D-1","D-2","D-3","D-4","D-5","E-1","E-2","E-3","E-4","E-5","E-6","E-7","E-8","E-9","E-10","E-11","E-12"];
+    const correctCodes = {
+      "A":"~","B":"HA","C":"PP","D-1":"Y","D-2":"~","D-3":"BIR","D-4":"TH","D-5":"DAY",
+      "E-1":"~","E-2":"I","E-3":"LO","E-4":"VE","E-5":"Y","E-6":"O","E-7":"U","E-8":"生",
+      "E-9":"日","E-10":"快","E-11":"樂","E-12":"!!!!!!"
+    };
+
+    // 檢查 localStorage 是否可用
+    function storageAvailable(type) {
+      try {
+        var storage = window[type],
+            x = '__storage_test__';
+        storage.setItem(x, x);
+        storage.removeItem(x);
+        return true;
+      } catch(e) {
+        return false;
+      }
+    }
+
+    function login() {
+      let u = document.getElementById("username").value.trim();
+      let p = document.getElementById("password").value.trim();
+      if (u === account.user && p === account.pass) {
+        localStorage.setItem("loggedIn","true");
+        document.getElementById("loginBox").style.display="none";
+        document.getElementById("mainBox").style.display="block";
+        loadItems();
+      } else {
+        document.getElementById("loginMsg").textContent="帳號或密碼錯誤！請確認輸入正確";
+      }
+    }
+
+    window.onload = function() {
+      // 檢查 localStorage 支援狀況
+      if (!storageAvailable('localStorage')) {
+        document.getElementById("storageWarning").textContent = "⚠️ 你的瀏覽器不支援或限制 localStorage，登入功能可能無法使用。請換用 Chrome、Safari 或 Edge。";
+      }
+
+      // 登入頁面也套用保存的背景顏色
+      applySavedColor();
+
+      if (localStorage.getItem("loggedIn")==="true") {
+        document.getElementById("loginBox").style.display="none";
+        document.getElementById("mainBox").style.display="block";
+        loadItems();
+      }
+    };
+
+    function clearRecords() {
+      prizeNames.forEach(name=>localStorage.removeItem("code_"+name));
+      loadItems();
+      document.getElementById("grandPrize").textContent="";
+    }
+
+    function logout() {
+      localStorage.removeItem("loggedIn");
+      location.reload();
+    }
+
+    function clearAll() {
+      localStorage.clear();
+      location.reload();
+    }
+
+    function loadItems() {
+      const itemsDiv=document.getElementById("items");
+      itemsDiv.innerHTML="";
+      prizeNames.forEach((name,index)=>{
+        const savedCode=localStorage.getItem("code_"+name)||"";
+        itemsDiv.innerHTML+=`
+          <div class="item">
+            ${name} 獎項: 
+            <input type="text" id="code${index}" value="${savedCode}" 
+              placeholder="輸入密碼" oninput="saveCode('${name}',this.value)">
+          </div>`;
+      });
+      checkGrandPrize();
+    }
+
+    function saveCode(name,value) {
+      localStorage.setItem("code_"+name,value);
+      checkGrandPrize();
+    }
+
+    function checkGrandPrize() {
+      let allCorrect=true;
+      prizeNames.forEach(name=>{
+        const savedCode=localStorage.getItem("code_"+name);
+        if(savedCode!==correctCodes[name]) allCorrect=false;
+      });
+      document.getElementById("grandPrize").textContent=allCorrect?"🎉 恭喜！您獲得最後大獎！":"";
+    }
+
+    function changeColor(color) {
+      document.body.style.background=color;
+      localStorage.setItem("bgColor",color);
+    }
+
+    function customGradient() {
+      const c1=document.getElementById("color1").value.trim();
+      const c2=document.getElementById("color2").value.trim();
+      if(c1&&c2){
+        const gradient=`linear-gradient(to right, ${c1}, ${c2})`;
+        changeColor(gradient);
+      } else {
+        alert("請輸入兩個顏色代碼，例如 #ff0000 和 #0000ff");
+      }
+    }
+
+    function applySavedColor() {
+      const savedColor=localStorage.getItem("bgColor");
+      if(savedColor) document.body.style.background=savedColor;
+    }
+  </script>
+</body>
+</html>
